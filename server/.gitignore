@@ -1,0 +1,22 @@
+# maven
+/target/
+
+# intellij
+/.idea/
+*.iml
+*.ipr
+*.iws
+
+# eclipse
+/.classpath
+/.project
+/.settings/
+
+# netbeans
+/nbproject/private/
+/nbbuild/
+/dist/
+/.nb-gradle/
+
+### VS Code ###
+.vscode/
