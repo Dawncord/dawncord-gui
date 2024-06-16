@@ -5,11 +5,10 @@ import lombok.Getter;
 import lombok.Setter;
 
 @Getter
-@AllArgsConstructor
 public class SlashHandlerResponse {
-    private final String commandName;
-    private final String className;
-    private final String methodName;
-    private final SlashHandlerResponse child;
-    private final SlashHandlerResponse next;
+    private String commandName;
+    private String className;
+    private String methodName;
+    private SlashHandlerResponse child;
+    private SlashHandlerResponse next;
 }

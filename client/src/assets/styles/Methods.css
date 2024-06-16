@@ -1,0 +1,7 @@
+button.executed {
+    background-color: #4caf50;
+}
+
+button.executed:hover {
+    background-color: #388e3c;
+}
