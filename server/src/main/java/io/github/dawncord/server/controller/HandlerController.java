@@ -30,9 +30,15 @@ public class HandlerController {
     }
 
     @PostMapping("/execute")
-    public String execute(@RequestBody JsonNode json){
+    public String execute(@RequestBody JsonNode json) {
         handlerService.processResponse(json);
 
+        return null;
+    }
+
+    @PostMapping("/remove")
+    public String remove(@RequestBody JsonNode data) {
+        handlerService.removeEvent(data.get("commandName").asText());
         return null;
     }
 }

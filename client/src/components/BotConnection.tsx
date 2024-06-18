@@ -107,7 +107,7 @@ const BotConnection: React.FC<BotConnectionProps> = ({isBotRunning, setIsBotRunn
     };
 
     return (
-        <div>
+        <div className="left-container">
             <div>
                 <label>
                     <h2>Bot token</h2>

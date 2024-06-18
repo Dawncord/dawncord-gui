@@ -1,4 +1,3 @@
-/* styles.css */
 body {
   margin: 0;
   font-family: 'Roboto', sans-serif;
@@ -21,32 +20,32 @@ body {
 
 .App-main {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start; /* Ensure left and center containers are spaced */
   padding: 20px;
 }
 
-.container {
+.left-container {
+  max-width: 300px;
+  margin-right: 20px;
+  flex-shrink: 0;
+}
+
+.center-container {
+  flex-grow: 1;
   display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.add-event-btn {
+  margin-bottom: 20px;
+}
+
+.elements {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   width: 100%;
-  max-width: 1200px;
-  background: white;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-.left-column, .right-column {
-  padding: 20px;
-}
-
-.left-column {
-  flex: 2;
-  border-right: 1px solid #e0e0e0;
-}
-
-.right-column {
-  flex: 1;
-  background: #f9f9f9;
 }
 
 input[type="text"] {
@@ -77,4 +76,13 @@ button:hover {
 h1, h2 {
   font-weight: 400;
   color: #333;
+}
+
+textarea {
+  width: 100%;
+  padding: 10px;
+  margin-top: 10px;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 16px;
 }

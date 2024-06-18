@@ -1,7 +1,7 @@
 import React, {useState} from 'react';
 import '../../assets/styles/App.css';
 import BotConnection from "../BotConnection";
-import MethodChain from "../MethodChain";
+import MethodChainManager from "../MethodChainManager";
 
 function App() {
     const [isBotRunning, setIsBotRunning] = useState(false);
@@ -12,14 +12,8 @@ function App() {
                 <h1>Discord Bot Creator</h1>
             </header>
             <main className="App-main">
-                <div className="container">
-                    <div className="left-column">
-                        <BotConnection isBotRunning={isBotRunning} setIsBotRunning={setIsBotRunning}/>
-                    </div>
-                    <div className="right-column">
-                        <MethodChain isBotRunning={isBotRunning}/>
-                    </div>
-                </div>
+                <BotConnection isBotRunning={isBotRunning} setIsBotRunning={setIsBotRunning}/>
+                <MethodChainManager isBotRunning={isBotRunning}/>
             </main>
         </div>
     );

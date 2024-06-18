@@ -20,10 +20,24 @@ interface MethodItem {
 
 interface MethodChainProps {
     isBotRunning: boolean;
+    id: number;
+    commandName: string;
+    setCommandName: (id: number, name: string) => void;
+    onRemove: (id: number, commandName: string) => void;
+    collapsed: boolean;
+    toggleCollapse: (id: number) => void;
 }
 
-const MethodChain: React.FC<MethodChainProps> = ({isBotRunning}) => {
-    const [commandName, setCommandName] = useState('');
+const MethodChain: React.FC<MethodChainProps> = (
+    {
+        isBotRunning,
+        id,
+        commandName,
+        setCommandName,
+        onRemove,
+        collapsed,
+        toggleCollapse
+    }) => {
     const [slashOptions, setSlashOptions] = useState<MethodOption[]>([]);
     const [selectedSlashOption, setSelectedSlashOption] = useState<MethodOption | null>(null);
     const [methodChain, setMethodChain] = useState(new LinkedList<MethodItem>());
@@ -33,7 +47,7 @@ const MethodChain: React.FC<MethodChainProps> = ({isBotRunning}) => {
     const [isExecuted, setIsExecuted] = useState(false);
 
     const handleCommandChange = (event: any) => {
-        setCommandName(event.target.value);
+        setCommandName(id, event.target.value);
         setIsExecuted(false);
     };
 
@@ -256,73 +270,87 @@ const MethodChain: React.FC<MethodChainProps> = ({isBotRunning}) => {
     };
 
     return (
-        <div>
-            <h2>Method Chain Selector</h2>
+        <div className={`method-chain-selector ${collapsed ? 'collapsed' : ''}`}>
             <div>
-                <label>
-                    <h2>Command name</h2>
-                    <input
-                        type="text"
-                        placeholder="Enter command name"
-                        value={commandName}
-                        onChange={handleCommandChange}
-                    />
-                </label>
+                Slash interaction
+                <div>
+                    {collapsed && <span className="command-name">{commandName}</span>}
+                    <button className="collapse-btn" onClick={() => toggleCollapse(id)}>
+                        {collapsed ? 'Expand' : 'Collapse'}
+                    </button>
+                </div>
+                <button onClick={() => onRemove(id, commandName)}>Remove</button>
             </div>
-            <Select
-                value={selectedSlashOption}
-                onChange={handleSlashChange}
-                options={slashOptions}
-                placeholder="Select Slash Command"
-            />
-            {isReplySelected && (
-                <NestedBlock>
-                    <h2>Reply Chain Selector</h2>
+            {!collapsed && (
+                <div className="content">
+                    <h2>Method Chain Selector</h2>
+                    <div>
+                        <label>
+                            <h2>Command name</h2>
+                            <input
+                                type="text"
+                                placeholder="Enter command name"
+                                value={commandName}
+                                onChange={handleCommandChange}
+                            />
+                        </label>
+                    </div>
                     <Select
-                        value={selectedReplySlashOption}
-                        onChange={handleReplySlashChange}
+                        value={selectedSlashOption}
+                        onChange={handleSlashChange}
                         options={slashOptions}
                         placeholder="Select Slash Command"
                     />
-                    {[...replyMethodChain].map((node, index) => (
+                    {isReplySelected && (
+                        <NestedBlock>
+                            <h2>Reply Chain Selector</h2>
+                            <Select
+                                value={selectedReplySlashOption}
+                                onChange={handleReplySlashChange}
+                                options={slashOptions}
+                                placeholder="Select Slash Command"
+                            />
+                            {[...replyMethodChain].map((node, index) => (
+                                node.item.methods.length > 0 && (
+                                    <div key={index}>
+                                        <p>Methods for {node.item.className}.{node.item.methodName}</p>
+                                        <Select
+                                            value={node.item.selectedMethod}
+                                            onChange={(selectedOption) => handleReplyMethodChange(selectedOption, index)}
+                                            options={node.item.methods}
+                                            placeholder={`Select Method for ${node.item.className}`}
+                                        />
+                                    </div>
+                                )
+                            ))}
+                        </NestedBlock>
+                    )}
+                    {[...methodChain].map((node, index) => (
                         node.item.methods.length > 0 && (
                             <div key={index}>
                                 <p>Methods for {node.item.className}.{node.item.methodName}</p>
                                 <Select
                                     value={node.item.selectedMethod}
-                                    onChange={(selectedOption) => handleReplyMethodChange(selectedOption, index)}
+                                    onChange={(selectedOption) => handleMethodChange(selectedOption, index)}
                                     options={node.item.methods}
                                     placeholder={`Select Method for ${node.item.className}`}
                                 />
                             </div>
                         )
                     ))}
-                </NestedBlock>
+                    {isBotRunning &&
+                        <button
+                            disabled={isExecuted}
+                            onClick={executeMethods}
+                            className={isExecuted ? 'executed' : ''}
+                        >
+                            {isExecuted ? 'Executed' : 'Execute Methods'}
+                        </button>
+                    }
+                </div>
             )}
-            {[...methodChain].map((node, index) => (
-                node.item.methods.length > 0 && (
-                    <div key={index}>
-                        <p>Methods for {node.item.className}.{node.item.methodName}</p>
-                        <Select
-                            value={node.item.selectedMethod}
-                            onChange={(selectedOption) => handleMethodChange(selectedOption, index)}
-                            options={node.item.methods}
-                            placeholder={`Select Method for ${node.item.className}`}
-                        />
-                    </div>
-                )
-            ))}
-            {isBotRunning &&
-                <button
-                    disabled={isExecuted}
-                    onClick={executeMethods}
-                    className={isExecuted ? 'executed' : ''}
-                >
-                    {isExecuted ? 'Executed' : 'Execute Methods'}
-                </button>
-            }
         </div>
-    )
+    );
 };
 
 const NestedBlock = styled.div`

@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import io.github.dawncord.api.event.SlashCommandEvent;
 import io.github.dawncord.api.types.GatewayIntent;
+import io.github.dawncord.api.utils.EventProcessor;
 import io.github.dawncord.server.payload.slash.SlashHandlerResponse;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,10 +15,7 @@ import org.springframework.stereotype.Service;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.function.Consumer;
 
 @Service
@@ -152,5 +150,9 @@ public class HandlerService {
             e.printStackTrace();
         }
         return null;
+    }
+
+    public void removeEvent(String commandName) {
+        EventProcessor.slashCommandEventHandlers.remove(commandName);
     }
 }

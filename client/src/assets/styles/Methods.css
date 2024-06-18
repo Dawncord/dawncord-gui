@@ -1,3 +1,41 @@
+.method-chain-selector {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 20px;
+    margin: 10px;
+    background: #f9f9f9;
+    width: 300px; /* Fixed width */
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+.method-chain-selector .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.method-chain-selector .command-name {
+    font-weight: bold;
+    margin-right: 10px;
+}
+
+.method-chain-selector .collapse-btn {
+    background: transparent;
+    border: none;
+    color: #3f51b5;
+    cursor: pointer;
+}
+
+.method-chain-selector .collapse-btn:hover {
+    color: #303f9f;
+}
+
+.method-chain-selector .content {
+    margin-top: 20px;
+}
+
 button.executed {
     background-color: #4caf50;
 }
