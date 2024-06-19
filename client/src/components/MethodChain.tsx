@@ -21,9 +21,10 @@ interface MethodItem {
 interface MethodChainProps {
     isBotRunning: boolean;
     id: number;
-    commandName: string;
-    setCommandName: (id: number, name: string) => void;
-    onRemove: (id: number, commandName: string) => void;
+    eventType: string;
+    nameOrId: string;
+    setNameOrId: (id: number, nameOrId: string) => void;
+    onRemove: (id: number, nameOrId: string, eventType: string) => void;
     collapsed: boolean;
     toggleCollapse: (id: number) => void;
 }
@@ -32,27 +33,28 @@ const MethodChain: React.FC<MethodChainProps> = (
     {
         isBotRunning,
         id,
-        commandName,
-        setCommandName,
+        eventType,
+        nameOrId,
+        setNameOrId,
         onRemove,
         collapsed,
         toggleCollapse
     }) => {
-    const [slashOptions, setSlashOptions] = useState<MethodOption[]>([]);
-    const [selectedSlashOption, setSelectedSlashOption] = useState<MethodOption | null>(null);
+    const [options, setOptions] = useState<MethodOption[]>([]);
+    const [selectedOption, setSelectedOption] = useState<MethodOption | null>(null);
     const [methodChain, setMethodChain] = useState(new LinkedList<MethodItem>());
-    const [selectedReplySlashOption, setSelectedReplySlashOption] = useState<MethodOption | null>(null);
+    const [selectedReplyOption, setSelectedReplyOption] = useState<MethodOption | null>(null);
     const [replyMethodChain, setReplyMethodChain] = useState(new LinkedList<MethodItem>());
     const [isReplySelected, setIsReplySelected] = useState(false);
     const [isExecuted, setIsExecuted] = useState(false);
 
-    const handleCommandChange = (event: any) => {
-        setCommandName(id, event.target.value);
+    const handleNameOrIdChange = (event: any) => {
+        setNameOrId(id, event.target.value);
         setIsExecuted(false);
     };
 
-    const handleSlashChange = async (selectedOption: MethodOption | null) => {
-        setSelectedSlashOption(selectedOption);
+    const handleEventChange = async (selectedOption: MethodOption | null) => {
+        setSelectedOption(selectedOption);
         setIsReplySelected(selectedOption?.value === 'reply');
         if (selectedOption) {
             const newMethodChain = createNewMethodChain(selectedOption);
@@ -64,8 +66,8 @@ const MethodChain: React.FC<MethodChainProps> = (
         setIsExecuted(false);
     };
 
-    const handleReplySlashChange = async (selectedOption: MethodOption | null) => {
-        setSelectedReplySlashOption(selectedOption);
+    const handleReplyEventChange = async (selectedOption: MethodOption | null) => {
+        setSelectedReplyOption(selectedOption);
         if (selectedOption) {
             const newReplyMethodChain = createNewMethodChain(selectedOption);
             setReplyMethodChain(newReplyMethodChain);
@@ -85,7 +87,8 @@ const MethodChain: React.FC<MethodChainProps> = (
     };
 
     const executeMethods = async () => {
-        await axios.post('/bot/handlers/execute', formatMethodChain())
+        await axios.post('/bot/handlers/execute', formatMethodChain(), {params: {eventType: eventType}}
+        )
             .then(() => {
                 setIsExecuted(true);
             })
@@ -97,20 +100,34 @@ const MethodChain: React.FC<MethodChainProps> = (
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await axios.get('/bot/handlers/slash');
+                let response: any;
+                switch (eventType) {
+                    case 'slash':
+                        response = await axios.get('/bot/handlers/slash');
+                        break;
+                    case 'button':
+                        response = await axios.get('/bot/handlers/component', {params: {eventType: 'button'}});
+                        break;
+                    case 'select':
+                        response = await axios.get('/bot/handlers/component', {params: {eventType: 'select'}});
+                        break;
+                    case 'modal':
+                        response = await axios.get('/bot/handlers/component', {params: {eventType: 'modal'}});
+                        break;
+                }
                 const options = response.data.methods.map((method: any) => ({
                     value: method.name,
                     label: method.name,
                     class: response.data.current
                 }));
-                setSlashOptions(options);
+                setOptions(options);
             } catch (error) {
                 console.error("There was an error fetching the slash data!", error);
             }
         };
 
         fetchData();
-    }, []);
+    }, [eventType]);
 
     const createNewMethodChain = (selectedOption: MethodOption): LinkedList<MethodItem> => {
         const newMethodChain = new LinkedList<MethodItem>();
@@ -236,7 +253,7 @@ const MethodChain: React.FC<MethodChainProps> = (
             const replyHead = replyMethodChain.head;
             if (replyHead) {
                 formattedChain = {
-                    className: selectedSlashOption?.class,
+                    className: selectedOption?.class,
                     methodName: 'reply',
                     child: createChainNode(replyHead),
                     next: null
@@ -263,7 +280,7 @@ const MethodChain: React.FC<MethodChainProps> = (
         }
 
         if (formattedChain) {
-            formattedChain.commandName = commandName;
+            formattedChain.commandName = nameOrId;
         }
 
         return formattedChain;
@@ -272,42 +289,42 @@ const MethodChain: React.FC<MethodChainProps> = (
     return (
         <div className={`method-chain-selector ${collapsed ? 'collapsed' : ''}`}>
             <div>
-                Slash interaction
+                {eventType && <span className="event-type">{eventType}</span>}
                 <div>
-                    {collapsed && <span className="command-name">{commandName}</span>}
+                    {collapsed && <span className="command-name">{nameOrId}</span>}
                     <button className="collapse-btn" onClick={() => toggleCollapse(id)}>
                         {collapsed ? 'Expand' : 'Collapse'}
                     </button>
                 </div>
-                <button onClick={() => onRemove(id, commandName)}>Remove</button>
+                <button onClick={() => onRemove(id, nameOrId, eventType)}>Remove</button>
             </div>
             {!collapsed && (
                 <div className="content">
                     <h2>Method Chain Selector</h2>
                     <div>
                         <label>
-                            <h2>Command name</h2>
+                            <h2>{eventType === 'slash' ? 'Command name' : 'Component id'}</h2>
                             <input
                                 type="text"
-                                placeholder="Enter command name"
-                                value={commandName}
-                                onChange={handleCommandChange}
+                                placeholder={eventType === 'slash' ? 'Enter command name' : 'Enter component id'}
+                                value={nameOrId}
+                                onChange={handleNameOrIdChange}
                             />
                         </label>
                     </div>
                     <Select
-                        value={selectedSlashOption}
-                        onChange={handleSlashChange}
-                        options={slashOptions}
+                        value={selectedOption}
+                        onChange={handleEventChange}
+                        options={options}
                         placeholder="Select Slash Command"
                     />
                     {isReplySelected && (
                         <NestedBlock>
                             <h2>Reply Chain Selector</h2>
                             <Select
-                                value={selectedReplySlashOption}
-                                onChange={handleReplySlashChange}
-                                options={slashOptions}
+                                value={selectedReplyOption}
+                                onChange={handleReplyEventChange}
+                                options={options}
                                 placeholder="Select Slash Command"
                             />
                             {[...replyMethodChain].map((node, index) => (
