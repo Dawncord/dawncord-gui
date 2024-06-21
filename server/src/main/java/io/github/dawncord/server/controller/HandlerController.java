@@ -5,9 +5,12 @@ import io.github.dawncord.api.event.ButtonEvent;
 import io.github.dawncord.api.event.ModalSubmitEvent;
 import io.github.dawncord.api.event.SelectMenuEvent;
 import io.github.dawncord.api.event.SlashCommandEvent;
+import io.github.dawncord.server.payload.handler.HandlerRequest;
 import io.github.dawncord.server.service.HandlerService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/bot/handlers")
@@ -35,27 +38,30 @@ public class HandlerController {
     }
 
     @GetMapping("/methods")
-    public JsonNode methods(@RequestParam String className, @RequestParam String methodName) {
-        return handlerService.handleMethods(className, methodName);
+    public JsonNode methods(@RequestParam String className, @RequestParam String methodName, @RequestParam(required = false) List<String> params) {
+        return handlerService.handleMethods(className, methodName, params);
     }
 
-    @PostMapping("/execute")
-    public String execute(@RequestBody JsonNode json, @RequestParam String eventType) {
-        handlerService.processResponse(json, eventType);
+    @PostMapping("/slash/{commandName}/execute")
+    public String executeSlash(@RequestBody HandlerRequest request, @PathVariable String commandName) {
+        handlerService.processSlash(request, commandName);
         return null;
     }
 
-    @PostMapping("/slash/remove")
-    public String removeSlash(@RequestBody JsonNode data) {
-        String commandName = data.get("commandName").asText();
+    @PostMapping("/component/{eventType}/{componentId}/execute")
+    public String executeComponent(@RequestBody HandlerRequest request, @PathVariable String eventType, @PathVariable String componentId) {
+        handlerService.processComponent(request, eventType, componentId);
+        return null;
+    }
+
+    @PostMapping("/slash/{commandName}/remove")
+    public String removeSlash(@PathVariable String commandName) {
         handlerService.removeSlash(commandName);
         return null;
     }
 
-    @PostMapping("/component/remove")
-    public String removeComponent(@RequestBody JsonNode data) {
-        String eventType = data.get("eventType").asText();
-        String componentId = data.get("componentId").asText();
+    @PostMapping("/component/{eventType}/{componentId}/remove")
+    public String removeComponent(@PathVariable String eventType, @PathVariable String componentId) {
         handlerService.removeComponent(eventType, componentId);
         return null;
     }

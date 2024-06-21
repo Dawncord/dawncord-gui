@@ -30,14 +30,16 @@ const MethodChainManager: React.FC<{ isBotRunning: boolean }> = ({isBotRunning})
     };
 
     const removeEventConfiguration = async (id: number, nameOrId: string, eventType: string) => {
-        try {
-            eventType === 'slash'
-                ? await axios.post('/bot/handlers/slash/remove', {commandName: nameOrId})
-                : await axios.post('/bot/handlers/component/remove', {eventType: eventType, componentId: nameOrId});
-            setSelectors(selectors.filter(selector => selector.id !== id));
-        } catch (error) {
-            console.error("There was an error deleting the command!", error);
+        if (nameOrId) {
+            try {
+                eventType === 'slash'
+                    ? await axios.post(`/bot/handlers/slash/${nameOrId}/remove`)
+                    : await axios.post(`/bot/handlers/component/${eventType}/${nameOrId}/remove`);
+            } catch (error) {
+                console.error("There was an error deleting the command!", error);
+            }
         }
+        setSelectors(selectors.filter(selector => selector.id !== id));
     };
 
     return (

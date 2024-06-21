@@ -8,6 +8,8 @@ import '../assets/styles/Methods.css';
 interface MethodOption {
     value: string;
     label: string;
+    name: string;
+    params: string[];
     class: string;
 }
 
@@ -16,6 +18,7 @@ interface MethodItem {
     methodName: string;
     methods: MethodOption[];
     selectedMethod: MethodOption | null;
+    params: string[];
 }
 
 interface MethodChainProps {
@@ -55,11 +58,11 @@ const MethodChain: React.FC<MethodChainProps> = (
 
     const handleEventChange = async (selectedOption: MethodOption | null) => {
         setSelectedOption(selectedOption);
-        setIsReplySelected(selectedOption?.value === 'reply');
+        setIsReplySelected(selectedOption?.name === 'reply');
         if (selectedOption) {
             const newMethodChain = createNewMethodChain(selectedOption);
             setMethodChain(newMethodChain);
-            await fetchMethods(selectedOption.class, selectedOption.value, newMethodChain);
+            await fetchMethods(selectedOption, newMethodChain);
         } else {
             setMethodChain(new LinkedList<MethodItem>());
         }
@@ -71,7 +74,7 @@ const MethodChain: React.FC<MethodChainProps> = (
         if (selectedOption) {
             const newReplyMethodChain = createNewMethodChain(selectedOption);
             setReplyMethodChain(newReplyMethodChain);
-            await fetchReplyMethods(selectedOption.class, selectedOption.value, newReplyMethodChain);
+            await fetchReplyMethods(selectedOption, newReplyMethodChain);
         } else {
             setReplyMethodChain(new LinkedList<MethodItem>());
         }
@@ -87,43 +90,70 @@ const MethodChain: React.FC<MethodChainProps> = (
     };
 
     const executeMethods = async () => {
-        await axios.post('/bot/handlers/execute', formatMethodChain(), {params: {eventType: eventType}}
-        )
-            .then(() => {
-                setIsExecuted(true);
-            })
-            .catch(error => {
-                console.error('There was an error executing the method chain!', error);
-            });
-    }
+        const execute = async (url: string) => {
+            await axios.post(url, formatMethodChain())
+                .then(() => {
+                    setIsExecuted(true)
+                })
+                .catch(error => {
+                    console.error('There was an error executing the method chain!', error)
+                });
+        };
+
+        const url = eventType === 'slash'
+            ? `/bot/handlers/slash/${nameOrId}/execute`
+            : `/bot/handlers/component/${eventType}/${nameOrId}/execute`;
+
+        await execute(url);
+    };
 
     useEffect(() => {
         const fetchData = async () => {
-            try {
-                let response: any;
-                switch (eventType) {
-                    case 'slash':
-                        response = await axios.get('/bot/handlers/slash');
-                        break;
-                    case 'button':
-                        response = await axios.get('/bot/handlers/component', {params: {eventType: 'button'}});
-                        break;
-                    case 'select':
-                        response = await axios.get('/bot/handlers/component', {params: {eventType: 'select'}});
-                        break;
-                    case 'modal':
-                        response = await axios.get('/bot/handlers/component', {params: {eventType: 'modal'}});
-                        break;
-                }
+            const url = eventType === 'slash'
+                ? '/bot/handlers/slash'
+                : '/bot/handlers/component';
+            const params = eventType !== 'slash'
+                ? {params: {eventType}}
+                : undefined;
+
+            await axios.get(url, params)
+                .then(response => {
+                    const options = response.data.methods.map((method: any) => ({
+                        value: method.name + (method.params.length > 0 ? '(' + method.params.map((param: any) => param.name).join(', ') + ')' : ''),
+                        label: method.name + (method.params.length > 0 ? '(' + method.params.map((param: any) => param.name).join(', ') + ')' : ''),
+                        name: method.name,
+                        params: method.params.map((param: any) => param.type),
+                        class: response.data.current,
+                    }));
+
+                    setOptions(options);
+                })
+                .catch(error => {
+                    console.error("There was an error fetching the data!", error);
+                });
+
+            /*try {
+                const url = eventType === 'slash'
+                    ? '/bot/handlers/slash'
+                    : '/bot/handlers/component';
+                const params = eventType !== 'slash'
+                    ? {params: {eventType}}
+                    : undefined;
+
+                const response = await axios.get(url, params);
+
                 const options = response.data.methods.map((method: any) => ({
-                    value: method.name,
-                    label: method.name,
-                    class: response.data.current
+                    value: method.name + (method.params.length > 0 ? '(' + method.params.map((param: any) => param.name).join(', ') + ')' : ''),
+                    label: method.name + (method.params.length > 0 ? '(' + method.params.map((param: any) => param.name).join(', ') + ')' : ''),
+                    name: method.name,
+                    params: method.params.map((param: any) => param.type),
+                    class: response.data.current,
                 }));
+
                 setOptions(options);
             } catch (error) {
-                console.error("There was an error fetching the slash data!", error);
-            }
+                console.error("There was an error fetching the data!", error);
+            }*/
         };
 
         fetchData();
@@ -135,7 +165,8 @@ const MethodChain: React.FC<MethodChainProps> = (
             className: selectedOption.class,
             methodName: selectedOption.value,
             methods: [],
-            selectedMethod: null
+            selectedMethod: null,
+            params: selectedOption.params
         });
         return newMethodChain;
     };
@@ -145,7 +176,7 @@ const MethodChain: React.FC<MethodChainProps> = (
         setMethodChain: React.Dispatch<React.SetStateAction<LinkedList<MethodItem>>>,
         selectedOption: MethodOption | null,
         index: number,
-        fetchMethods: (className: string, methodName: string, currentMethodChain: LinkedList<MethodItem>) => void
+        fetchMethods: (selectedOption: MethodOption, currentMethodChain: LinkedList<MethodItem>) => void
     ) => {
         const updatedMethodChain = new LinkedList<MethodItem>();
         let currentNode = methodChain.head;
@@ -162,16 +193,16 @@ const MethodChain: React.FC<MethodChainProps> = (
                 ...currentNode.item,
                 selectedMethod: selectedOption
             });
-            fetchMethods(selectedOption?.class ?? '', selectedOption?.value ?? '', updatedMethodChain);
         } else if (selectedOption) {
             updatedMethodChain.add({
                 className: selectedOption.class,
                 methodName: selectedOption.value,
                 methods: [],
-                selectedMethod: null
+                selectedMethod: null,
+                params: selectedOption.params
             });
-            fetchMethods(selectedOption.class, selectedOption.value, updatedMethodChain);
         }
+        fetchMethods(selectedOption!!, updatedMethodChain);
 
         setMethodChain(updatedMethodChain);
 
@@ -179,8 +210,7 @@ const MethodChain: React.FC<MethodChainProps> = (
     };
 
     const fetchMethodsGeneric = async (
-        className: string,
-        methodName: string,
+        selectedOption: MethodOption,
         currentMethodChain: LinkedList<MethodItem>,
         setMethodChain: React.Dispatch<React.SetStateAction<LinkedList<MethodItem>>>,
     ) => {
@@ -194,23 +224,41 @@ const MethodChain: React.FC<MethodChainProps> = (
 
             const mapResponseToOptions = (methods: any[], currentClass: string): MethodOption[] => {
                 return methods.map(method => ({
-                    value: method.name,
-                    label: method.name,
+                    value: method.name + (method.params.length > 0 ? '(' + method.params.map((param: any) => param.name).join(', ') + ')' : ''),
+                    label: method.name + (method.params.length > 0 ? '(' + method.params.map((param: any) => param.name).join(', ') + ')' : ''),
+                    name: method.name,
+                    params: method.params.map((param: any) => param.type),
                     class: currentClass
                 }));
             };
 
             const response = await axios.get('/bot/handlers/methods', {
-                params: {className, methodName}
+                params: {
+                    className: selectedOption.class,
+                    methodName: selectedOption.name,
+                    params: selectedOption.params.join(',')
+                }
             });
 
             const newMethodChain = initializeNewMethodChain(currentMethodChain);
 
             if (response.data?.methods) {
                 const methods = mapResponseToOptions(response.data.methods, response.data.current);
-                newMethodChain.add({className, methodName, methods, selectedMethod: null});
+                newMethodChain.add({
+                    className: selectedOption.class,
+                    methodName: selectedOption.name,
+                    methods,
+                    selectedMethod: null,
+                    params: selectedOption.params
+                });
             } else {
-                newMethodChain.add({className, methodName, methods: [], selectedMethod: null});
+                newMethodChain.add({
+                    className: selectedOption.class,
+                    methodName: selectedOption.name,
+                    methods: [],
+                    selectedMethod: null,
+                    params: selectedOption.params
+                });
             }
 
             setMethodChain(newMethodChain);
@@ -219,12 +267,12 @@ const MethodChain: React.FC<MethodChainProps> = (
         }
     };
 
-    const fetchMethods = async (className: string, methodName: string, currentMethodChain = methodChain) => {
-        await fetchMethodsGeneric(className, methodName, currentMethodChain, setMethodChain);
+    const fetchMethods = async (selectedOption: MethodOption, currentMethodChain = methodChain) => {
+        await fetchMethodsGeneric(selectedOption, currentMethodChain, setMethodChain);
     };
 
-    const fetchReplyMethods = async (className: string, methodName: string, currentReplyMethodChain = replyMethodChain) => {
-        await fetchMethodsGeneric(className, methodName, currentReplyMethodChain, setReplyMethodChain);
+    const fetchReplyMethods = async (selectedOption: MethodOption, currentReplyMethodChain = replyMethodChain) => {
+        await fetchMethodsGeneric(selectedOption, currentReplyMethodChain, setReplyMethodChain);
     };
 
     const formatMethodChain = () => {
@@ -235,6 +283,7 @@ const MethodChain: React.FC<MethodChainProps> = (
             return {
                 className: node?.item?.className,
                 methodName: node?.item?.methodName,
+                params: node?.item?.params || [],
                 child: null,
                 next: null
             };
@@ -243,8 +292,9 @@ const MethodChain: React.FC<MethodChainProps> = (
         const doChain = (head: any) => {
             let chainNode = head.next;
             while (chainNode) {
-                currentChain.next = createChainNode(chainNode)
-                currentChain = currentChain.next;
+                const newNode = createChainNode(chainNode);
+                currentChain.next = newNode;
+                currentChain = newNode;
                 chainNode = chainNode.next;
             }
         };
@@ -255,6 +305,7 @@ const MethodChain: React.FC<MethodChainProps> = (
                 formattedChain = {
                     className: selectedOption?.class,
                     methodName: 'reply',
+                    params: [],
                     child: createChainNode(replyHead),
                     next: null
                 };
@@ -279,10 +330,6 @@ const MethodChain: React.FC<MethodChainProps> = (
             }
         }
 
-        if (formattedChain) {
-            formattedChain.commandName = nameOrId;
-        }
-
         return formattedChain;
     };
 
@@ -300,7 +347,6 @@ const MethodChain: React.FC<MethodChainProps> = (
             </div>
             {!collapsed && (
                 <div className="content">
-                    <h2>Method Chain Selector</h2>
                     <div>
                         <label>
                             <h2>{eventType === 'slash' ? 'Command name' : 'Component id'}</h2>
@@ -312,6 +358,7 @@ const MethodChain: React.FC<MethodChainProps> = (
                             />
                         </label>
                     </div>
+                    <h2>Methods</h2>
                     <Select
                         value={selectedOption}
                         onChange={handleEventChange}
@@ -320,7 +367,7 @@ const MethodChain: React.FC<MethodChainProps> = (
                     />
                     {isReplySelected && (
                         <NestedBlock>
-                            <h2>Reply Chain Selector</h2>
+                            <h2>Reply</h2>
                             <Select
                                 value={selectedReplyOption}
                                 onChange={handleReplyEventChange}

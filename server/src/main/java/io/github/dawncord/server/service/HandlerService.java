@@ -9,9 +9,8 @@ import io.github.dawncord.api.event.ModalSubmitEvent;
 import io.github.dawncord.api.event.SelectMenuEvent;
 import io.github.dawncord.api.event.SlashCommandEvent;
 import io.github.dawncord.api.utils.EventProcessor;
-import io.github.dawncord.server.payload.handler.BaseHandlerResponse;
-import io.github.dawncord.server.payload.handler.ComponentHandlerResponse;
-import io.github.dawncord.server.payload.handler.SlashHandlerResponse;
+import io.github.dawncord.server.payload.handler.HandlerRequest;
+import io.github.dawncord.server.payload.method.MethodResponse;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,8 +18,11 @@ import org.springframework.stereotype.Service;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 @Service
 public class HandlerService {
@@ -32,36 +34,29 @@ public class HandlerService {
         this.botService = botService;
     }
 
-    public void processResponse(JsonNode jsonNode, String eventType) {
+    public void processSlash(HandlerRequest request, String commandName) {
+        List<String> list = extractMethodNames(request);
+        List<String> replyList = extractReplyMethodNames(request);
+
+        botService.getBot().onSlashCommand(commandName, onEvent(SlashCommandEvent.class, list, replyList));
+    }
+
+    public void processComponent(HandlerRequest request, String eventType, String componentId) {
+        List<String> list = extractMethodNames(request);
+        List<String> replyList = extractReplyMethodNames(request);
+
         switch (eventType) {
-            case "slash" -> processSlash(jsonNode);
-            case "button", "select", "modal" -> processComponent(jsonNode, eventType);
+            case "button" -> botService.getBot().onButton(componentId, onEvent(ButtonEvent.class, list, replyList));
+            case "select" -> botService.getBot().onSelectMenu(componentId, onEvent(SelectMenuEvent.class, list, replyList));
+            case "modal" -> botService.getBot().onModal(componentId, onEvent(ModalSubmitEvent.class, list, replyList));
         }
     }
 
-    @SneakyThrows
-    private void processSlash(JsonNode jsonNode) {
-        SlashHandlerResponse response = mapper.treeToValue(jsonNode, SlashHandlerResponse.class);
-        List<String> list = extractMethodNames(response);
-        List<String> replyList = extractReplyMethodNames(response);
-
-        processSlashEvent(response.getCommandName(), list, replyList);
-    }
-
-    @SneakyThrows
-    private void processComponent(JsonNode jsonNode, String eventType) {
-        ComponentHandlerResponse response = mapper.treeToValue(jsonNode, ComponentHandlerResponse.class);
-        List<String> list = extractMethodNames(response);
-        List<String> replyList = extractReplyMethodNames(response);
-
-        processComponentEvent(response.getComponentId(), list, replyList, eventType);
-    }
-
-    private <T extends BaseHandlerResponse<T>> List<String> extractMethodNames(T response) {
+    private List<String> extractMethodNames(HandlerRequest response) {
         List<String> list = new ArrayList<>();
         list.add(response.getMethodName());
 
-        T current = response;
+        HandlerRequest current = response;
         while (current.getNext() != null) {
             current = current.getNext();
             list.add(current.getMethodName());
@@ -70,11 +65,11 @@ public class HandlerService {
         return list;
     }
 
-    private <T extends BaseHandlerResponse<T>> List<String> extractReplyMethodNames(T response) {
+    private List<String> extractReplyMethodNames(HandlerRequest response) {
         List<String> replyList = new ArrayList<>();
 
         if (response.getMethodName().equals("reply")) {
-            T current = response.getChild();
+            HandlerRequest current = response.getChild();
             replyList.add(current.getMethodName());
 
             while (current.getNext() != null) {
@@ -84,18 +79,6 @@ public class HandlerService {
         }
 
         return replyList;
-    }
-
-    private void processSlashEvent(String commandName, List<String> list, List<String> replyList) {
-        botService.getBot().onSlashCommand(commandName, onEvent(SlashCommandEvent.class, list, replyList));
-    }
-
-    private void processComponentEvent(String componentId, List<String> list, List<String> replyList, String eventType) {
-        switch (eventType) {
-            case "button" -> botService.getBot().onButton(componentId, onEvent(ButtonEvent.class, list, replyList));
-            case "select" -> botService.getBot().onSelectMenu(componentId, onEvent(SelectMenuEvent.class, list, replyList));
-            case "modal" -> botService.getBot().onModal(componentId, onEvent(ModalSubmitEvent.class, list, replyList));
-        }
     }
 
     private <T> Consumer<T> onEvent(Class<T> eventClass, List<String> list, List<String> replyList) {
@@ -131,32 +114,52 @@ public class HandlerService {
     }
 
     public JsonNode handleEvent(Class<?> currentClass) {
-        List<Method> methods = Arrays.stream(currentClass.getMethods()).toList();
+        List<MethodResponse> methodResponses = Arrays.stream(currentClass.getMethods())
+                .filter(method -> !method.getName().startsWith("lambda") && !method.getName().equals("UpdateData"))
+                .filter(method -> Arrays.stream(method.getParameters()).noneMatch(p -> p.getType().equals(long.class)))
+                .map(method -> {
+                    MethodResponse response = new MethodResponse();
+                    response.setName(method.getName());
+
+                    List<MethodResponse.MethodParam> params = Arrays.stream(method.getParameters())
+                            .map(p -> {
+                                MethodResponse.MethodParam param = new MethodResponse.MethodParam();
+                                param.setType(p.getType().getName());
+                                param.setName(p.getName());
+                                return param;
+                            })
+                            .collect(Collectors.toList());
+                    response.setParams(params);
+
+                    return response;
+                })
+                .collect(Collectors.toList());
 
         ObjectNode node = mapper.createObjectNode();
-        ArrayNode methodsNode = mapper.createArrayNode();
-
-        methods.forEach(method -> {
-            methodsNode.add(mapper.createObjectNode()
-                    .put("name", method.getName())
-                    .put("class", method.getReturnType().getName())
-            );
-        });
-
         node.put("current", currentClass.getName());
-        node.set("methods", methodsNode);
+        node.set("methods", mapper.convertValue(methodResponses, ArrayNode.class));
 
         return node;
     }
 
     @SneakyThrows
-    public JsonNode handleMethods(String className, String methodName) {
+    public JsonNode handleMethods(String className, String methodName, List<String> params) {
         Method method;
 
-        if (methodName.equals("reply")) {
+        if (methodName.matches(".*(?i)reply.*")) {
             method = Class.forName(className).getMethod(methodName, String.class);
         } else {
-            method = Class.forName(className).getMethod(methodName);
+            if (params.isEmpty()) {
+                method = Class.forName(className).getMethod(methodName);
+            } else {
+                method = Class.forName(className).getMethod(methodName, params.stream().map(p -> {
+                    try {
+                        return Class.forName(p);
+                    } catch (ClassNotFoundException e) {
+                        throw new RuntimeException(e);
+                    }
+                }).toArray(Class[]::new));
+            }
         }
 
         Class<?> returnType = method.getReturnType();
@@ -189,6 +192,7 @@ public class HandlerService {
     }
 
     public void removeSlash(String commandName) {
+        commandName = commandName.replace("_", " ");
         EventProcessor.slashCommandEventHandlers.remove(commandName);
     }
 
