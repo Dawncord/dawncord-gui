@@ -1,8 +1,9 @@
-import MethodChain from "./MethodChain";
+//import MethodChainSelector from "./MethodChainSelector";
 import React, {useState} from "react";
 import axios from "axios";
-import '../assets/styles/Methods.css';
-import AddEventButton from "./AddEventButton";
+import '../../assets/styles/Methods.css';
+import AddEventButton from "../AddEventButton";
+import MethodChainSelector from "./MethodChainSelector";
 
 interface Selector {
     id: number;
@@ -49,7 +50,7 @@ const MethodChainManager: React.FC<{ isBotRunning: boolean }> = ({isBotRunning})
             </div>
             <div className="elements">
                 {selectors.map((selector) => (
-                    <MethodChain
+                    <MethodChainSelector
                         key={selector.id}
                         id={selector.id}
                         eventType={selector.eventType}

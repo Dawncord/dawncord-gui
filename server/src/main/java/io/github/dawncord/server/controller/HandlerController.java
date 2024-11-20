@@ -1,5 +1,6 @@
 package io.github.dawncord.server.controller;
 
+import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.github.dawncord.api.event.ButtonEvent;
 import io.github.dawncord.api.event.ModalSubmitEvent;
@@ -41,6 +42,14 @@ public class HandlerController {
     public JsonNode methods(@RequestParam String className, @RequestParam String methodName, @RequestParam(required = false) List<String> params) {
         return handlerService.handleMethods(className, methodName, params);
     }
+
+    /*@PostMapping("/slash/{commandName}/execute")
+    public String executeSlash(@RequestBody JsonNode jsonNode, @PathVariable String commandName) {
+        System.out.println(commandName);
+        System.out.println(jsonNode.toPrettyString());
+        System.out.println("------------------");
+        return null;
+    }*/
 
     @PostMapping("/slash/{commandName}/execute")
     public String executeSlash(@RequestBody HandlerRequest request, @PathVariable String commandName) {

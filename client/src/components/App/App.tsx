@@ -1,9 +1,9 @@
 import React, {useState} from 'react';
 import '../../assets/styles/App.css';
 import BotConnection from "../BotConnection";
-import MethodChainManager from "../MethodChainManager";
+import MethodChainManager from "../method/MethodChainManager";
 
-function App() {
+const App = () => {
     const [isBotRunning, setIsBotRunning] = useState(false);
 
     return (
@@ -17,7 +17,7 @@ function App() {
             </main>
         </div>
     );
-}
+};
 
 export default App;
 

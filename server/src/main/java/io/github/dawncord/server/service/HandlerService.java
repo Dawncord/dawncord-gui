@@ -117,6 +117,7 @@ public class HandlerService {
         List<MethodResponse> methodResponses = Arrays.stream(currentClass.getMethods())
                 .filter(method -> !method.getName().startsWith("lambda") && !method.getName().equals("UpdateData"))
                 .filter(method -> Arrays.stream(method.getParameters()).noneMatch(p -> p.getType().equals(long.class)))
+                .filter(method -> !method.getDeclaringClass().equals(Object.class))
                 .map(method -> {
                     MethodResponse response = new MethodResponse();
                     response.setName(method.getName());
@@ -138,6 +139,8 @@ public class HandlerService {
         ObjectNode node = mapper.createObjectNode();
         node.put("current", currentClass.getName());
         node.set("methods", mapper.convertValue(methodResponses, ArrayNode.class));
+
+        //System.out.println(node.toPrettyString());
 
         return node;
     }

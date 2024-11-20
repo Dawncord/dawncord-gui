@@ -1,27 +1,13 @@
 import styled from "styled-components";
 import React, {useEffect, useState} from "react";
-import LinkedList from "../utils/LinkedList";
+import LinkedList from "../../utils/LinkedList";
 import axios from "axios";
 import Select from "react-select";
-import '../assets/styles/Methods.css';
+import '../../assets/styles/Methods.css';
+import MethodChain from "./MethodChain";
+import {MethodItem, MethodOption} from "../../utils/MethodUtils";
 
-interface MethodOption {
-    value: string;
-    label: string;
-    name: string;
-    params: string[];
-    class: string;
-}
-
-interface MethodItem {
-    className: string;
-    methodName: string;
-    methods: MethodOption[];
-    selectedMethod: MethodOption | null;
-    params: string[];
-}
-
-interface MethodChainProps {
+interface MethodChainSelectorProps {
     isBotRunning: boolean;
     id: number;
     eventType: string;
@@ -32,7 +18,7 @@ interface MethodChainProps {
     toggleCollapse: (id: number) => void;
 }
 
-const MethodChain: React.FC<MethodChainProps> = (
+const MethodChainSelector: React.FC<MethodChainSelectorProps> = (
     {
         isBotRunning,
         id,
@@ -131,29 +117,6 @@ const MethodChain: React.FC<MethodChainProps> = (
                 .catch(error => {
                     console.error("There was an error fetching the data!", error);
                 });
-
-            /*try {
-                const url = eventType === 'slash'
-                    ? '/bot/handlers/slash'
-                    : '/bot/handlers/component';
-                const params = eventType !== 'slash'
-                    ? {params: {eventType}}
-                    : undefined;
-
-                const response = await axios.get(url, params);
-
-                const options = response.data.methods.map((method: any) => ({
-                    value: method.name + (method.params.length > 0 ? '(' + method.params.map((param: any) => param.name).join(', ') + ')' : ''),
-                    label: method.name + (method.params.length > 0 ? '(' + method.params.map((param: any) => param.name).join(', ') + ')' : ''),
-                    name: method.name,
-                    params: method.params.map((param: any) => param.type),
-                    class: response.data.current,
-                }));
-
-                setOptions(options);
-            } catch (error) {
-                console.error("There was an error fetching the data!", error);
-            }*/
         };
 
         fetchData();
@@ -374,34 +337,16 @@ const MethodChain: React.FC<MethodChainProps> = (
                                 options={options}
                                 placeholder="Select Slash Command"
                             />
-                            {[...replyMethodChain].map((node, index) => (
-                                node.item.methods.length > 0 && (
-                                    <div key={index}>
-                                        <p>Methods for {node.item.className}.{node.item.methodName}</p>
-                                        <Select
-                                            value={node.item.selectedMethod}
-                                            onChange={(selectedOption) => handleReplyMethodChange(selectedOption, index)}
-                                            options={node.item.methods}
-                                            placeholder={`Select Method for ${node.item.className}`}
-                                        />
-                                    </div>
-                                )
-                            ))}
+                            <MethodChain
+                                methodChain={replyMethodChain}
+                                handleMethodChange={handleReplyMethodChange}
+                            />
                         </NestedBlock>
                     )}
-                    {[...methodChain].map((node, index) => (
-                        node.item.methods.length > 0 && (
-                            <div key={index}>
-                                <p>Methods for {node.item.className}.{node.item.methodName}</p>
-                                <Select
-                                    value={node.item.selectedMethod}
-                                    onChange={(selectedOption) => handleMethodChange(selectedOption, index)}
-                                    options={node.item.methods}
-                                    placeholder={`Select Method for ${node.item.className}`}
-                                />
-                            </div>
-                        )
-                    ))}
+                    <MethodChain
+                        methodChain={methodChain}
+                        handleMethodChange={handleMethodChange}
+                    />
                     {isBotRunning &&
                         <button
                             disabled={isExecuted}
@@ -421,4 +366,4 @@ const NestedBlock = styled.div`
     margin-left: 40px;
 `;
 
-export default MethodChain;
+export default MethodChainSelector;
